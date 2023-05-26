@@ -1,0 +1,8 @@
+let bounty_not_empty = DetectiveCases
+| where isnotempty(Properties)
+| extend d1=Properties.Bounty;
+DetectiveCases
+| where isnotempty(DetectiveId) and EventType == "CaseSolved"
+| join bounty_not_empty on CaseId
+| summarize sum(tolong(d1)) by DetectiveId
+| order by sum_d1 desc;
