@@ -1,0 +1,7 @@
+Consumption
+| where Consumed > 0
+| distinct  HouseholdId, MeterType, Consumed // distinct take a lot of time but no alternative for the moment
+| summarize Consumed=sum(Consumed) by MeterType
+| lookup Costs on MeterType  
+| extend bill=Consumed*Cost
+| summarize round(sum(bill), 2)
