@@ -1,0 +1,6 @@
+PhoneCalls 
+| where EventType == 'Connect' 
+| where Properties.IsHidden == "true"
+| join kind=inner (PhoneCalls | where EventType == 'Disconnect' and Properties.DisconnectedBy == "Destination") on CallConnectionId
+| summarize Count=count() by Phone=tostring(Properties.Origin) 
+| top 1 by Count
