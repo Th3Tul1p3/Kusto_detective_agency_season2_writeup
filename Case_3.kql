@@ -1,0 +1,17 @@
+let traffic_stolen =CarsTraffic | where VIN in (StolenCars);
+let traffic_stolen_last_place = traffic_stolen | summarize Last=arg_max(Timestamp,VIN) by VIN;
+let suspect =traffic_stolen_last_place
+| join kind = rightsemi traffic_stolen on $left.Last == $right.Timestamp, VIN
+| project VIN, Timestamp, Ave, Street
+| extend TimeKey = range(Timestamp, Timestamp + 7min, 30sec)
+| mv-expand TimeKey to typeof(datetime)
+| join kind=rightsemi  (CarsTraffic) on $left.TimeKey == $right.Timestamp, Ave, Street
+| distinct VIN;
+CarsTraffic
+| where VIN in (suspect)
+| summarize Last=arg_max(Timestamp,VIN) by VIN
+| join kind=rightsemi CarsTraffic on VIN and $left.Last == $right.Timestamp
+| summarize count() by bin(Timestamp,1d),Ave,Street
+| join kind=innerunique (traffic_stolen_last_place
+| summarize count() by bin(Last, 1d)) on $left.Timestamp == $right.Last, $left.count_ == $right.count_
+| distinct Ave,Street
