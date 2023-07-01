@@ -1,0 +1,15 @@
+let abnormal_info =NetworkMetrics
+| summarize count() by bin(Timestamp,1d), ClientIP
+| summarize count() by ClientIP
+| where count_ != 30
+| evaluate ipv4_lookup(IpInfo, ClientIP, IpCidr)
+| distinct Info;
+NetworkMetrics
+| evaluate ipv4_lookup(IpInfo, ClientIP, IpCidr)
+| where Info has_any (abnormal_info)
+| make-series sum(BytesSent) on Timestamp step 1d by ClientIP
+| evaluate ipv4_lookup(IpInfo, ClientIP, IpCidr)
+| where Info == ""
+| render timechart
+
+// after many queries to find anomalies, abnormal behavior I have reduce the list of domain. Don't know if I was lucky or ...
