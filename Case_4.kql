@@ -1,15 +1,3 @@
-let abnormal_info =NetworkMetrics
-| summarize count() by bin(Timestamp,1d), ClientIP
-| summarize count() by ClientIP
-| where count_ != 30
-| evaluate ipv4_lookup(IpInfo, ClientIP, IpCidr)
-| distinct Info;
-NetworkMetrics
-| evaluate ipv4_lookup(IpInfo, ClientIP, IpCidr)
-| where Info has_any (abnormal_info)
-| make-series sum(BytesSent) on Timestamp step 1d by ClientIP
-| evaluate ipv4_lookup(IpInfo, ClientIP, IpCidr)
-| where Info == ""
-| render timechart
-
-// after many queries to find anomalies, abnormal behavior I have reduce the list of domain. Don't know if I was lucky or ...
+// After many queries to find anomalies and abnormal behavior I have reduced the list of domains. I was just lucky to find the right domain. 
+// I recommend this writeup to solve the case https://www.lieselhughes.com/posts/tech/kusto-detective-agency/season2case4/#the-investigation
+// My main mistake is doing ipv4_lookup in memory (not creating a new table) 
