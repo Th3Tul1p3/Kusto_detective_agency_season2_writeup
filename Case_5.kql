@@ -1,1 +1,23 @@
+.set-or-replace Transaction_Host_URI <|
+    StorageArchiveLogs
+    | parse EventText with TransactionType " blob transaction: '" BlobURI "'" *
+    | extend Host = tostring(parse_url(BlobURI).Host)
 
+let reads = Transaction_Host_URI
+| parse EventText with * "(" Reads:long "reads)" *;
+let most_reads_per = reads
+| make-series   Reads=sumif(Reads, TransactionType == 'Read') on Timestamp step 1d by Host 
+| project series_periods_validate(Reads, 7.0), Host // on a weekly basis
+| mv-expand series_periods_validate_Reads_scores to typeof(double) 
+| top 1 by series_periods_validate_Reads_scores
+| join kind=inner (reads
+| summarize Reads=sumif(Reads, TransactionType == 'Read') by Host) on Host
+| sort by series_periods_validate_Reads_scores, Reads
+| summarize mylist = make_list(Host);
+Transaction_Host_URI
+| where Host in (most_reads_per) and TransactionType == "Delete" and EventText has "backup"
+| project BlobURI
+| join kind=rightsemi  (Transaction_Host_URI
+| where TransactionType == "Create") on BlobURI
+| parse EventText with * " backup is created on " BackupURI
+| project BackupURI
