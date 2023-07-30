@@ -36,3 +36,14 @@ let Decode = Message
 Message
 | extend plain_text = replace_strings(Text, toscalar(Decode | summarize make_list(cipher)), toscalar(Decode | summarize make_list(extracted_words)))
 | project plain_text
+
+// first word ?
+NationalGalleryArt
+| extend  Title_lower=tolower(Title)
+| project Title_lower
+| extend title_break = extract_all(@"(\w{3,})", ['Title_lower'])
+| search "prince"
+| mv-expand title_break
+| extend title_break=tostring(title_break)
+| summarize count() by title_break
+| top 1 by count_
