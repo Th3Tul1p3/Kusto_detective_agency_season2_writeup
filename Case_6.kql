@@ -37,13 +37,49 @@ Message
 | extend plain_text = replace_strings(Text, toscalar(Decode | summarize make_list(cipher)), toscalar(Decode | summarize make_list(extracted_words)))
 | project plain_text
 
-// first word ?
-NationalGalleryArt
+let list_popularity=NationalGalleryArt
 | extend  Title_lower=tolower(Title)
 | project Title_lower
 | extend title_break = extract_all(@"(\w{3,})", ['Title_lower'])
-| search "prince"
 | mv-expand title_break
 | extend title_break=tostring(title_break)
 | summarize count() by title_break
+| sort by count_
+| extend index=row_number();
+// first word
+let king_position = toint(toscalar(list_popularity 
+| where title_break == "king"
+| project index));
+list_popularity
+| where index == (king_position + 1)
+| project title_break
+// second word
+NationalGalleryArt
+// search in item title the occurence of first and third word 
+| extend  Title_lower=tolower(Title)
+| project Title_lower
+| search "day"
+| search "month"
+// keep only word with length of 5 
+| extend title_break = extract_all(@"(\w{5})", ['Title_lower'])
+| mv-expand title_break
+| extend title_break=tostring(title_break)
+| summarize count() by title_break
+| sort by count_
+// after that we have a list of 31 words (+ 2 words)
+// the word today match the hint of timeline 
+// third word
+let most_popular_word_substring = substring((toscalar(list_popularity
 | top 1 by count_
+| project title_break)),0,2);
+list_popularity
+| where index == 12
+| project title_break
+| extend conca=strcat(title_break, most_popular_word_substring)
+// manth --> month
+
+NationalGalleryArt
+| search Title:"day"
+| search Title:"month"
+| search Title:"today"
+| project ImageUrl
