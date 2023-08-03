@@ -55,19 +55,15 @@ list_popularity
 | project title_break
 // second word
 NationalGalleryArt
-// search in item title the occurence of first and third word 
 | extend  Title_lower=tolower(Title)
 | project Title_lower
-| search "day"
-| search "month"
-// keep only word with length of 5 
-| extend title_break = extract_all(@"(\w{5})", ['Title_lower'])
+| extend title_break = extract_all(@"(\w{3,})", ['Title_lower'])
 | mv-expand title_break
 | extend title_break=tostring(title_break)
 | summarize count() by title_break
 | sort by count_
-// after that we have a list of 31 words (+ 2 words)
-// the word today match the hint of timeline 
+// the word "third" have a count of 161
+| where count_ == "161"
 // third word
 let most_popular_word_substring = substring((toscalar(list_popularity
 | top 1 by count_
