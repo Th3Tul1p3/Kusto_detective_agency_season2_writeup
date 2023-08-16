@@ -1,0 +1,34 @@
+let s2_precision = 11; // ~3km
+// all flights that where in doha
+let list_callsign = Airports
+| where Ident == "OTHH" // doha
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| join kind=inner (
+Flights
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| where onground // Only consider planes that were on the ground
+) on key
+| where Timestamp between (datetime(2023-08-11 03:30:00) .. datetime(2023-08-11 05:30:00))
+| distinct callsign;
+Flights
+| where callsign in (list_callsign)
+| where Timestamp > datetime(2023-08-11 03:30:00)
+| where geoaltitude > 5500 and geoaltitude < 6500
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| join kind=inner (
+Flights
+| extend key=geo_point_to_s2cell(lon, lat, s2_precision)
+| where not(onground)
+) on key, Timestamp
+| where not(callsign == callsign1)
+| where Timestamp > datetime(2023-08-11 03:30:00)
+| summarize count() by callsign, callsign1
+| top 1 by count_
+Flights
+| where callsign == "HFID97"
+| where Timestamp > datetime(2023-08-11 03:30:00)
+| where onground
+| distinct lat, lon
+| extend key=geo_point_to_s2cell(lon, lat, 12)
+| join kind=inner (Airports| extend key=geo_point_to_s2cell(lon, lat, 12)) on key
+| distinct municipality
