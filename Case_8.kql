@@ -1,0 +1,18 @@
+let VirtualTourLink = (lat:real, lon:real) {
+    strcat('https://www.google.com/maps/@', lat, ',', lon,
+        ',3a,75y,252.01h,89.45t/data=!3m6!1e1!3m4!1s-1P!2e0!7i16384!8i8192')};
+let triage_runner =Runs
+| join kind=leftsemi (Runs| summarize count() by RunnerID, bin(Timestamp, 7d)| where count_ between (3 .. 4)) on RunnerID
+| join kind=leftsemi (Runs| summarize Max = max(Distance) by RunnerID | join kind=inner (Runs| summarize Min = min(Distance) by RunnerID) on RunnerID
+| where Min >= 8 and Max <= 12
+) on RunnerID
+| extend geocell=geo_point_to_s2cell(StartLon, StartLat,18), bin(Timestamp,5min);
+let geocell_top = triage_runner
+| summarize count() by Timestamp, geocell
+| sort by count_
+| summarize countif(count_ == 2) by geocell
+| top 1 by  countif_
+| project geocell;
+triage_runner
+| where geocell in (geocell_top)
+| extend link=VirtualTourLink(StartLat,StartLon)
