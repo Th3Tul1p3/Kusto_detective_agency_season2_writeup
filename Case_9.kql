@@ -1,7 +1,10 @@
 .set-or-replace PeriodicScan <|
 MachineLogs
 | where EventType == "PeriodicScan"
-| parse Message with Machine_type " periodic scan completed, " NB_vuln "critical vulnerabilities were found."
+| parse Message with Machine_type " periodic scan completed, " NB_vuln:int "critical vulnerabilities were found."
+
+PeriodicScan
+| where NB_vuln > 0 and Machine_type == "Admin"
 
 .set-or-replace IncomingRequest <|
 MachineLogs
