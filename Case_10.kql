@@ -31,3 +31,45 @@ KuandaLogs
 | where token != ""
 | order by Timestamp
 | summarize list_=make_list(token) by DetectiveId
+
+print Key=strcat_array(dynamic([
+"pcui",
+"qcth",
+"mpdq"]), ''
+), Message=@'mW2MYfYJYUeJYF8jYU2zYF2zYW0EYU0MYU0MY3Xk23aKaDrVm1Pta1Ptal1z23h9TOGeL7aGbq8qg7aWh7a5LnolTca5TnxGp49vL7Rv7nl9TcevPnJnLWDibOYuLfIxYWtqhmIWbU2lYfecNQ81TiR1pCGEh4Vek7RGpGo9TcRih72XsBeVKQ0lRQDVFOt9kCGEh489p4lXp48CTi2VTCoiNQ81gOjVLn99TCRG2OG12dkXTOMVLmR1km3HTdeVgO3MpOtE2OGW2dhGpceVTOoiNq0vF48qTieH2davh7RG2OxwTql8FjIVpdPwLntWpno4p489pCjVTOG1h7P9TO[x2OlGTdaXTCpVhOoiTq8wTq8XTch9TOGe2OGEpia4kmR1gmoE2dRGkdY9sI=='
+| invoke Dekrypt()
+| project Result
+
+
+let triage =KuandaLogs
+| parse Message with "Sending an encrypted message, will use Dekrypt(" enc_message "', strcat_array(<active-user-encryption-tokens>, '')) for decoding."
+| where enc_message !=""
+| project DetectiveId;
+KuandaLogs
+| where DetectiveId in (triage)
+| partition hint.strategy=native by DetectiveId
+(
+    order by Timestamp asc 
+     | scan with_match_id=id  declare(StartTime:datetime, EndTime:datetime) with (
+        step start output=none: 
+			Message has 'User entered the system' or Message has 'User session reset' => StartTime = Timestamp;
+        step completed output=last:
+			(Timestamp-start.StartTime > 10min) => 
+			StartTime = start.StartTime, EndTime = Timestamp;
+    )
+    | order by id asc, Timestamp asc
+)
+
+KuandaLogs
+| parse Message with * "). Captured user encryption token: '" token "'." 
+| where token != ""
+| order by Timestamp
+| summarize list_=make_list(token) by DetectiveId
+
+KuandaLogs
+| parse Message with * "). Captured user encryption token: '" token "'." 
+| parse Message with * "Operation id=" id " " Status " "*
+| where DetectiveId == "kvc178c8b4935bed382529"
+| where token != ""
+| order by Timestamp
+| summarize list_=make_list(token) by DetectiveId
