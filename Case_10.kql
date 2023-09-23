@@ -1,0 +1,33 @@
+KuandaLogs
+| parse Message with "Sending an encrypted message, will use Dekrypt(" enc_message "', strcat_array(<active-user-encryption-tokens>, '')) for decoding."
+| where enc_message !=""
+
+// 16 days of logs 
+// only 15 events last days only to say that encryption tokens are disposed
+KuandaLogs
+| summarize count() by bin(Timestamp,1d)
+
+let triage =KuandaLogs
+| parse Message with "Sending an encrypted message, will use Dekrypt(" enc_message "', strcat_array(<active-user-encryption-tokens>, '')) for decoding."
+| where enc_message !=""
+| project DetectiveId;
+KuandaLogs
+| where DetectiveId in (triage)
+| partition hint.strategy=native by DetectiveId
+(
+    order by Timestamp asc 
+     | scan with_match_id=id  declare(StartTime:datetime, EndTime:datetime) with (
+        step start output=none: 
+			Message has 'User entered the system' or Message has 'User session reset' => StartTime = Timestamp;
+        step completed output=last:
+			(Timestamp-start.StartTime > 10min) => 
+			StartTime = start.StartTime, EndTime = Timestamp;
+    )
+    | order by id asc, Timestamp asc
+)
+
+KuandaLogs
+| parse Message with * "). Captured user encryption token: '" token "'." 
+| where token != ""
+| order by Timestamp
+| summarize list_=make_list(token) by DetectiveId
