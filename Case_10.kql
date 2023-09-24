@@ -73,3 +73,23 @@ KuandaLogs
 | where token != ""
 | order by Timestamp
 | summarize list_=make_list(token) by DetectiveId
+
+
+let triage =KuandaLogs
+| parse Message with "Sending an encrypted message, will use Dekrypt(" enc_message "', " *
+| where enc_message !=""
+| project DetectiveId;
+KuandaLogs
+| where DetectiveId in (triage)
+| parse Message with * "). Captured user encryption token: '" Token "'." 
+| parse Message with "Sending an encrypted message, will use Dekrypt(@'" Encoded "'," *
+| order by DetectiveId, Timestamp asc
+| where Message !has "disposed"
+| extend PrevToken1 = prev(Token, 1)
+| extend PrevToken2 = prev(Token, 2)
+| extend PrevToken3 = prev(Token, 3)
+| extend ConcatenatedColumns = strcat(PrevToken3, PrevToken2, PrevToken1)
+| where Message has "Sending"
+| project Key = tostring(ConcatenatedColumns), Message = tostring(Encoded)
+| invoke Dekrypt()
+| project Result
